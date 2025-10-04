@@ -7,9 +7,13 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import json
 import httpx
+import logging
 
 # Create router
 router = APIRouter(prefix="/v1")
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # In-memory storage for registered models and their backends
 registered_models = {}
@@ -51,6 +55,7 @@ async def chat_completions(request: Request, chat_request: ChatCompletionRequest
     print(f"chat_completions called for model: {chat_request.model}, registered_models: {registered_models}")  # Debug print
     # Check if we have a backend for this model
     if chat_request.model not in registered_models:
+        logger.error(f"404 Error: Model '{chat_request.model}' not found")
         raise HTTPException(
             status_code=404, 
             detail=f"Model '{chat_request.model}' not found"
@@ -97,12 +102,13 @@ async def chat_completions(request: Request, chat_request: ChatCompletionRequest
                 print("Successfully parsed JSON response")
                 return json_response
             except Exception as e:
-                print(f"Error parsing response as JSON: {e}")
+                logger.error(f"Error parsing response as JSON: {e}")
                 raise HTTPException(
                     status_code=500, 
                     detail=f"Error parsing backend response: {str(e)}"
                 )
     except Exception as e:
+        logger.error(f"Error forwarding request to backend: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error forwarding request to backend: {str(e)}"

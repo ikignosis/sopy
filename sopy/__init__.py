@@ -1,0 +1,3 @@
+"""
+SOPY package initialization.
+"""

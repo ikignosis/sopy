@@ -4,9 +4,14 @@ import os
 import sys
 import time
 import signal
+import logging
 from pathlib import Path
 
 def start_server():
+    # Set up logging
+    from sopy.utils import setup_logging
+    logger = setup_logging()
+    
     # Create logs directory if it doesn't exist
     logs_dir = Path("logs")
     logs_dir.mkdir(exist_ok=True)
@@ -44,7 +49,7 @@ def start_server():
         print(f"✅ Admin socket server started (PID: {admin_process.pid})")
         
     except Exception as e:
-        print(f"❌ Error starting admin socket server: {e}")
+        logger.error(f"❌ Error starting admin socket server: {e}")
         return 1
     
     # Start the main FastAPI server in background
@@ -76,7 +81,7 @@ def start_server():
             return 1
             
     except Exception as e:
-        print(f"❌ Error starting main server: {e}")
+        logger.error(f"❌ Error starting main server: {e}")
         # Kill the admin socket server if main server failed
         admin_process.terminate()
         return 1
