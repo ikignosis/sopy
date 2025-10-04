@@ -11,11 +11,12 @@ import sqlite3
 from pathlib import Path
 
 # Import the OpenAI router to update registered models
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from openai_router import update_registered_models
+from sopy.openai_router import update_registered_models
 
 # Socket path for admin commands
-ADMIN_SOCKET_PATH = Path("/tmp/sopy_admin.sock")
+ADMIN_SOCKET_PATH = Path("/tmp/sopy_admin.sock")  # Unix socket path (not used on Windows)
+ADMIN_HOST = "127.0.0.1"  # TCP host for Windows compatibility
+ADMIN_PORT = 8001  # TCP port for Windows compatibility
 # Database path
 DB_PATH = Path("sopy_admin.db")
 
@@ -116,20 +117,30 @@ class AdminSocketServer:
         asyncio.create_task(self.update_openai_router())
         
     async def start_server(self):
-        """Start the Unix socket server for admin commands."""
-        # Remove existing socket file if it exists
-        if self.socket_path.exists():
-            self.socket_path.unlink()
+        """Start the server for admin commands (Unix socket on Unix, TCP socket on Windows)."""
+        if os.name == 'nt':  # Windows
+            # Use TCP socket on Windows
+            self.server = await asyncio.start_server(
+                self.handle_client,
+                host=ADMIN_HOST,
+                port=ADMIN_PORT
+            )
+            print(f"Admin TCP server started at {ADMIN_HOST}:{ADMIN_PORT}")
+        else:  # Unix-like systems
+            # Use Unix socket on Unix-like systems
+            # Remove existing socket file if it exists
+            if self.socket_path.exists():
+                self.socket_path.unlink()
+                
+            self.server = await asyncio.start_unix_server(
+                self.handle_client, 
+                path=str(self.socket_path)
+            )
             
-        self.server = await asyncio.start_unix_server(
-            self.handle_client, 
-            path=str(self.socket_path)
-        )
-        
-        # Set proper permissions (owner read/write only)
-        os.chmod(self.socket_path, 0o600)
-        
-        print(f"Admin socket server started at {self.socket_path}")
+            # Set proper permissions (owner read/write only)
+            os.chmod(self.socket_path, 0o600)
+            
+            print(f"Admin socket server started at {self.socket_path}")
         
         async with self.server:
             await self.server.serve_forever()

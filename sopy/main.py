@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 # Import the OpenAI router
-from openai_router import router as openai_router
+from sopy.openai_router import router as openai_router
 
 app = FastAPI()
 
@@ -22,16 +22,25 @@ def read_item(name: str):
     return {"message": f"Hello {name}"}
 
 def send_admin_command(command):
-    """Send a command to the admin socket and return the response."""
-    socket_path = Path("/tmp/sopy_admin.sock")
-    
-    if not socket_path.exists():
-        raise HTTPException(status_code=500, detail="Admin socket not available")
-    
+    """Send a command to the admin server and return the response."""
     try:
-        # Create Unix socket
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.connect(str(socket_path))
+        if os.name == 'nt':  # Windows
+            # Use TCP socket on Windows
+            host = "127.0.0.1"
+            port = 8001
+            # Create TCP socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((host, port))
+        else:  # Unix-like systems
+            # Use Unix socket on Unix-like systems
+            socket_path = Path("/tmp/sopy_admin.sock")
+            
+            if not socket_path.exists():
+                raise HTTPException(status_code=500, detail="Admin socket not available")
+            
+            # Create Unix socket
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(str(socket_path))
         
         # Send command
         sock.sendall(json.dumps(command).encode())
@@ -41,8 +50,12 @@ def send_admin_command(command):
         sock.close()
         
         return json.loads(response.decode())
+    except ConnectionRefusedError:
+        raise HTTPException(status_code=500, detail="Admin server not available")
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="Admin socket not available")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error communicating with admin socket: {e}")
+        raise HTTPException(status_code=500, detail=f"Error communicating with admin server: {e}")
 
 # Authentication endpoints
 @app.post("/admin/auth")

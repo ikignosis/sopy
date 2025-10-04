@@ -27,7 +27,7 @@ def start_server():
     # Start the admin socket server in background
     try:
         admin_process = subprocess.Popen(
-            [sys.executable, "admin_socket.py"],
+            [sys.executable, "-m", "sopy.admin_socket"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True
@@ -51,7 +51,7 @@ def start_server():
     try:
         with open(logfile, 'w') as f:
             process = subprocess.Popen(
-                [sys.executable, "-m", "uvicorn", "main:app", "--host", host, "--port", str(port)],
+                [sys.executable, "-m", "uvicorn", "sopy.main:app", "--host", host, "--port", str(port)],
                 stdout=f,
                 stderr=subprocess.STDOUT,
                 start_new_session=True
